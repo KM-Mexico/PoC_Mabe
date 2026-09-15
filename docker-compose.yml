@@ -1,0 +1,117 @@
+name: business-case-agent
+
+services:
+  api:
+    build:
+      context: ./app/backend
+      target: runtime
+    environment:
+      USE_MOCKS: "false"
+      AGENT_MODE: ${AGENT_MODE:-true}
+      AGENT_ENV: ${AGENT_ENV:-local}
+      DATABASE_URL: sqlite:////data/business_case.db
+      MAX_REQUEST_BODY_BYTES: ${MAX_REQUEST_BODY_BYTES:-55574528}
+      UPLOAD_DIRECTORY: /data/uploads
+      LLM_PROVIDER: openai_compatible
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.servicesessentials.ibm.com/v1}
+      LLM_API_STYLE: ${LLM_API_STYLE:-responses}
+      LLM_GENERATOR_MODEL: ${LLM_GENERATOR_MODEL:-gpt-5.6-terra}
+      LLM_CRITIC_MODEL: ${LLM_CRITIC_MODEL:-}
+      LLM_API_KEY_FILE: /run/secrets/llm_api_key
+      LLM_CA_BUNDLE: ${LLM_CA_BUNDLE:-}
+      LLM_USER_AGENT: ${LLM_USER_AGENT:-codex_cli_rs/0.151.0}
+      LLM_ORIGINATOR: ${LLM_ORIGINATOR:-codex_cli_rs}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-60}
+      LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-2}
+      LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-4096}
+    secrets:
+      - llm_api_key
+    volumes:
+      - business-case-data:/data
+    ports:
+      - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./app/frontend
+      target: runtime
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-4200}:80"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  test-backend:
+    profiles: ["test"]
+    build:
+      context: ./app/backend
+      target: test
+    environment:
+      USE_MOCKS: "true"
+      AGENT_MODE: "true"
+      AGENT_ENV: test
+      DATABASE_URL: sqlite:////tmp/business_case_test.db
+      MAX_REQUEST_BODY_BYTES: "55574528"
+      UPLOAD_DIRECTORY: /tmp/business-case-test-uploads
+
+  test-frontend:
+    profiles: ["test"]
+    build:
+      context: ./app/frontend
+      target: test
+    environment:
+      CHROME_BIN: /usr/bin/chromium
+
+  test-e2e:
+    profiles: ["test"]
+    build:
+      context: ./app/tests/e2e
+    environment:
+      BASE_URL: http://web
+    volumes:
+      - ./docs:/fixtures:ro
+    depends_on:
+      web:
+        condition: service_healthy
+
+  api-contract:
+    profiles: ["tools"]
+    build:
+      context: ./app/backend
+      target: base
+    environment:
+      USE_MOCKS: "true"
+      DATABASE_URL: sqlite:////tmp/contract.db
+      UPLOAD_DIRECTORY: /tmp/business-case-contract-uploads
+    volumes:
+      - ./app/frontend:/contract
+    command: ["python", "-m", "app.export_openapi", "/contract/openapi.json"]
+
+  frontend-tools:
+    profiles: ["tools"]
+    build:
+      context: ./app/frontend
+      target: source
+    volumes:
+      - ./app/frontend/openapi.json:/app/openapi.json
+      - ./app/frontend/src/app/core/api:/app/src/app/core/api
+    command: ["npm", "run", "api:generate"]
+
+volumes:
+  business-case-data:
+
+secrets:
+  llm_api_key:
+    environment: CODEX_API_KEY

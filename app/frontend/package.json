@@ -1,0 +1,36 @@
+{
+  "name": "business-case-agent-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "ng serve --host 0.0.0.0 --port 4200",
+    "build": "ng build",
+    "test": "ng test --watch=false --browsers=ChromeHeadlessNoSandbox",
+    "api:generate": "openapi-typescript openapi.json -o src/app/core/api/schema.d.ts"
+  },
+  "dependencies": {
+    "@angular/common": "20.3.30",
+    "@angular/compiler": "20.3.30",
+    "@angular/core": "20.3.30",
+    "@angular/forms": "20.3.30",
+    "@angular/platform-browser": "20.3.30",
+    "@angular/router": "20.3.30",
+    "rxjs": "~7.8.2",
+    "tslib": "^2.8.1",
+    "zone.js": "~0.15.0"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "20.3.36",
+    "@angular/cli": "20.3.36",
+    "@angular/compiler-cli": "20.3.30",
+    "@types/jasmine": "~5.1.8",
+    "jasmine-core": "~5.9.0",
+    "karma": "~6.4.4",
+    "karma-chrome-launcher": "~3.2.0",
+    "karma-coverage": "~2.2.1",
+    "karma-jasmine": "~5.1.0",
+    "karma-jasmine-html-reporter": "~2.1.0",
+    "openapi-typescript": "^7.9.1",
+    "typescript": "~5.8.3"
+  }
+}
